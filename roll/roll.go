@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type RollNotation struct {
@@ -127,6 +128,13 @@ func (rr BestRollResult) Value() int {
 	return maxResult
 }
 
+func NewDiceSets(numSets int, diceSet []int) *DiceSets {
+	return &DiceSets{
+		NumSets: numSets, DiceSet: diceSet,
+		rand: rand.New(rand.NewSource(time.Now().UnixNano())),
+	}
+}
+
 func (dc *DiceSets) SetRand(r *rand.Rand) {
 	dc.rand = r
 }
@@ -184,7 +192,7 @@ func parseDNotation(dParts []string) (Roller, error) {
 		}
 		dice = append(dice, die)
 	}
-	return &DiceSets{NumSets: numSets, DiceSet: dice}, nil
+	return NewDiceSets(numSets, dice), nil
 }
 
 func ParseNotation(notation string) (RollNotation, error) {
