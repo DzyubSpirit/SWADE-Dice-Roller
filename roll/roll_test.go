@@ -30,6 +30,7 @@ func TestParseNotation(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		notation  string
+		wrapped   bool
 		randRolls []int
 
 		wantValue int
@@ -45,7 +46,7 @@ func TestParseNotation(t *testing.T) {
 		},
 		{
 			name: "die acing", notation: "d8", randRolls: []int{8, 5},
-			wantValue: 13, wantRepr: "[8 + 5]",
+			wantValue: 13, wantRepr: "8 + 5",
 		},
 		{
 			name: "multiple same dice choose best", notation: "2d10", randRolls: []int{6, 7},
@@ -59,16 +60,26 @@ func TestParseNotation(t *testing.T) {
 			name: "different dice sum", notation: "d10 + d4", randRolls: []int{8, 2},
 			wantValue: 10, wantRepr: "8 + 2",
 		},
+		{
+			name: "best of 2 with one die acing", notation: "2d6", randRolls: []int{6, 2, 3},
+			wantValue: 8, wantRepr: "[6 + 2, 3] 8",
+		},
+		{
+			name: "sum of 2 with a dice acing", notation: "d6 + d10", randRolls: []int{2, 10, 7},
+			wantValue: 19, wantRepr: "2 + [10 + 7]",
+		},
 	} {
-		rollNotation, err := ParseNotation(tc.notation)
-		if err != nil {
-			t.Fatalf("ParseNotation(%q) = _, err: %v", tc.notation, err)
-		}
-		rollNotation.SetRand(fakeRand(tc.randRolls))
+		t.Run(tc.name, func(t *testing.T) {
+			rollNotation, err := ParseNotation(tc.notation)
+			if err != nil {
+				t.Fatalf("ParseNotation(%q) = _, err: %v", tc.notation, err)
+			}
+			rollNotation.SetRand(fakeRand(tc.randRolls))
 
-		rollResult := rollNotation.Roll()
-		if rollResult.Value() != tc.wantValue || rollResult.String() != tc.wantRepr {
-			t.Fatalf("rollNotation.Roll(%q).SetRand(%v) = value: %v, repr: %q, want value: %v, want repr: %q", tc.notation, tc.randRolls, rollResult.Value(), rollResult.String(), tc.wantValue, tc.wantRepr)
-		}
+			rollResult := rollNotation.Roll()
+			if rollResult.Value() != tc.wantValue || rollResult.Detailed(tc.wrapped) != tc.wantRepr {
+				t.Fatalf("rollNotation.Roll(%q).SetRand(%v) = value: %v, Detailed(wrapped=%v): %q, want value: %v, want Detailed(wrapped=%v): %q", tc.notation, tc.randRolls, rollResult.Value(), tc.wrapped, rollResult.Detailed(tc.wrapped), tc.wantValue, tc.wrapped, tc.wantRepr)
+			}
+		})
 	}
 }

@@ -21,6 +21,7 @@ type Roller interface {
 type RollResult interface {
 	Value() int
 	fmt.Stringer
+	Detailed(wrapped bool) string
 }
 
 type SumRollResult struct {
@@ -46,8 +47,9 @@ type DiceSets struct {
 	rand *rand.Rand
 }
 
-func (rr DieRollResult) Value() int     { return int(rr) }
-func (rr DieRollResult) String() string { return strconv.Itoa(int(rr)) }
+func (rr DieRollResult) Value() int                   { return int(rr) }
+func (rr DieRollResult) Detailed(wrapped bool) string { return strconv.Itoa(int(rr)) }
+func (rr DieRollResult) String() string               { return rr.Detailed(false) }
 
 func (rr AcedDieRollResult) Value() int {
 	sum := 0
@@ -57,17 +59,24 @@ func (rr AcedDieRollResult) Value() int {
 	return sum
 }
 
-func (rr AcedDieRollResult) String() string {
+func (rr AcedDieRollResult) Detailed(wrapped bool) string {
+	if len(rr.Rolls) < 2 {
+		log.Printf("AcedDieRollResult.Detailed(%v): rr.Rolls has less than 2 rolls: %q. Want 2 or more rolls", wrapped, rr.Rolls)
+		return ""
+	}
 	var rollReprs []string
 	for _, roll := range rr.Rolls {
-		rollReprs = append(rollReprs, roll.String())
+		rollReprs = append(rollReprs, roll.Detailed( /*wrapped=*/ true))
 	}
-	reprsJoined := strings.Join(rollReprs, " + ")
-	if len(rr.Rolls) < 2 {
-		return reprsJoined
+	rollRepr := strings.Join(rollReprs, " + ")
+	if wrapped {
+		return "[" + rollRepr + "]"
+	} else {
+		return rollRepr
 	}
-	return fmt.Sprintf("[%s]", reprsJoined)
 }
+
+func (rr AcedDieRollResult) String() string { return rr.Detailed(false) }
 
 func (c Constant) SetRand(*rand.Rand) {}
 func (c Constant) Roll() RollResult {
@@ -82,37 +91,41 @@ func (rr SumRollResult) Value() int {
 	return sum
 }
 
-func (rr SumRollResult) String() string {
+func (rr SumRollResult) Detailed(wrapped bool) string {
 	if len(rr.Results) == 0 {
 		log.Println("SumRollResult.String() has an empty results list")
 		return "{ (internal error) no die results }"
 	}
 	if len(rr.Results) == 1 {
-		return rr.Results[0].String()
+		return rr.Results[0].Detailed(wrapped)
 	}
 
 	var reprs []string
 	for _, r := range rr.Results {
-		reprs = append(reprs, r.String())
+		reprs = append(reprs, r.Detailed( /*wrapped=*/ true))
 	}
 	return strings.Join(reprs, " + ")
 }
 
-func (rr BestRollResult) String() string {
+func (rr SumRollResult) String() string { return rr.Detailed(false) }
+
+func (rr BestRollResult) Detailed(wrapped bool) string {
 	if len(rr.Results) == 0 {
 		log.Println("BestRollResult.String() has an empty results list")
 		return " { (internal error) no die results }"
 	}
 	if len(rr.Results) == 1 {
-		return rr.Results[0].String()
+		return rr.Results[0].Detailed(wrapped)
 	}
 
 	var reprs []string
 	for _, r := range rr.Results {
-		reprs = append(reprs, r.String())
+		reprs = append(reprs, r.Detailed( /*wrapped=*/ false))
 	}
 	return fmt.Sprintf("[%s] %v", strings.Join(reprs, ", "), rr.Value())
 }
+
+func (rr BestRollResult) String() string { return rr.Detailed(false) }
 
 func (rr BestRollResult) Value() int {
 	if len(rr.Results) == 0 {
